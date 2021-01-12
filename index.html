@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        html,body {
+            width: 100%;
+            height: 100%;
+        }
+        #bulid{
+            position: relative;
+        }
+        #ta1{
+            position: absolute;
+            left:20px;
+            top: 20px;
+        }
+        #bigbox{
+            width: 100%;
+            height: 40%;
+            background: rgba(0,0,0,0.3);
+            display:none;
+            font-size: 80px;
+            line-height: 300px;
+            text-align: center;
+            position: fixed;
+            left: 0;
+            top:200px;
+
+        }
+        #sbox{
+            width: 60%;
+            height: 100%;
+            margin: auto;
+        }
+        #sbox p{
+            margin: auto;
+            width: 60%;
+            height: 200px;
+            line-height: 200px;
+            color: white;
+        }
+        #sbox button{
+            padding-top: -400px;
+            background-color: white;
+            position: absolute;
+            left: 50%;
+            top: 350px;
+        }
+    </style>
+</head>
+<body onload="onload()">
+<div id="box">
+<canvas id="cvs" width="512" height="512" style="border: 1px solid;"></canvas>
+<div id="bulid" style="height: 512px;width: 200px;float:left;border: 1px solid" >
+    <img src="img/塔2.png" height="120" width="100" id="ta1"/>
+    <button onclick="level()"style="width: 60px;height: 20px ; float: left;position: absolute;left: 30px;top: 140px">升级</button>
+    <img src="img/塔4.png" height="120" width="100"style=" float: left;position: absolute;left: 20px;top: 160px"/>
+    <button onclick="level1()"style="width: 60px;height: 20px ; float: left;position: absolute;left: 30px;top: 300px">升级</button>
+    <img src="img/地面.png" height="0" width="64"/>
+    <div style="position: absolute;left: 0;top: 400px">
+        <span>规则：如果分数（金币）超过1500分则判定胜利，如果怪物数量超过20只，就判定失败，简单粗暴</span>
+    </div>
+</div>
+</div>
+<div id="bigbox">
+    <div id="sbox">
+        <p id="show"></p>
+        <button onclick="agin()">重新开始</button>
+    </div>
+
+</div>
+<script>
+    var game=null;
+    var ctx=cvs.getContext("2d");
+    var img=[];
+    img.push(new Image());
+    img[0].src='img/地面.png';
+    img.push(new Image());
+    img[1].src='img/草.png';
+    img.push(new Image());
+    img[2].src='img/小丑.png';
+    var bulidimg=new Image();
+    bulidimg.src='img/塔2.png';
+    var bulidimg1=new Image();
+    bulidimg1.src='img/塔4.png';
+    var bulllteimg=new Image();
+    bulllteimg.src='img/bullte.png';
+    var gridWidth = 64;
+    var gridHeight = 64;
+    var rowLength = parseInt(cvs.width/gridWidth);
+    var map = [ 1,1,1,1,1,1,1,1,
+                0,0,0,0,0,0,0,1,
+                1,0,1,1,1,1,0,1,
+                1,0,1,1,1,1,0,1,
+                1,0,1,1,1,1,0,1,
+                1,0,1,1,1,1,0,1,
+                1,0,0,0,0,0,0,1,
+                1,1,1,1,1,1,1,1
+    ];
+    var times=0;
+    var times1=0
+    var flag=false;//允许防御塔建造的旗帜
+    var flag1=false;
+    var gold=500;//初始积分及金币
+    var mosterbtn=true;//控制怪物出场；
+    var buildflag=0;//标志该位置是否已经有防御塔；
+    function onload() {
+        game=new Game();
+        game.update();
+    }
+    function Game() {
+        var _this = this;
+        var Frame = 0;
+        var LastFrame = 0;
+        var CD = 120;
+        this.map = new Map();
+        this.moster = [];
+        this.build=[];//第一种塔
+        this.build1=[];//第二种塔
+        this.bulltes=[];
+        this.maxmosterlen=52;
+        this.mosterlen=_this.moster.length;
+        this.mosterhp=800;
+
+        this.update = function () {
+
+            ctx.clearRect(0, 0, cvs.width, cvs.height);
+            //地图的绘画
+            _this.map.draw();
+            _this.map.score();
+            //怪物的创建
+            ++Frame;
+            if(Frame>=CD&&mosterbtn===true) {
+                if (_this.moster.length <_this.maxmosterlen&&_this.mosterhp<=10000) {
+                    _this.mosterhp+=50;
+                    _this.moster.push(new Enemy(false,_this.mosterhp));
+
+
+                }
+                 if(_this.moster.length>=20){
+                    _this.moster=[];
+                    _this.build=[];
+                    _this.bulltes=[];
+                    _this.build.lmoney=100;
+                    _this.moster.HP=0;
+                    _this.bulltes.damage=0;
+                    _this.bulltes.damagelevel=0;
+                    gold=500;
+                    bigbox.style.display='block';
+                    mosterbtn=false;
+                     show.innerHTML='你输了！';
+                }else if(gold>=1500){
+                     _this.moster=[];
+                     _this.build=[];
+                     _this.bulltes=[];
+                     _this.build.lmoney=100;
+                     _this.moster.HP=0;
+                     _this.bulltes.damage=0;
+                     _this.bulltes.damagelevel=0;
+                     gold=500;
+                     bigbox.style.display='block';
+                     mosterbtn=false;
+                     show.innerHTML='你赢了！';
+                 }
+
+                Frame = LastFrame;
+            }
+            _this.moster.forEach(function (t) {
+               t.draw();
+                t.update();
+                t.changeColor();
+                if(t.flage===true){
+                    gold+=10;
+                    _this.moster.splice(_this.moster.indexOf(t),1);
+                }
+            });
+            //炮台的创建
+            document.onclick=function (e) {
+                var getx=e.pageX;
+                var gety=e.pageY;
+                var getx1=parseInt((e.pageX-cvs.offsetLeft)/gridWidth)*gridWidth;
+                var gety1=parseInt((e.pageY-cvs.offsetTop)/gridWidth)*gridWidth;
+                times++;
+                times1++;
+
+                //第一种塔
+                if(getx>=20&&getx<=120&&gety>=20&&gety<=140) {
+                   flag=true;
+                   buildflag=1;
+                }
+                 if(times===1&&flag===false){
+                    times=0;
+                }
+                if(times===2&&flag===true&& gold>=100&&getx>200&&buildflag===1){
+                        _this.build.push(new Bulid(getx1,gety1));
+                        gold-=100;
+                        flag=false;
+                        times=0;
+                        buildflag=0;
+                }
+                if(times===2&&flag===true&& gold<100) {
+                    times=0;
+                    flag=false;
+                    buildflag=0;
+                }
+
+                //第二种塔
+                if(getx>=20&&getx<=120&&gety>=160&&gety<=280) {
+                    flag1=true;
+                    buildflag=2;
+                }
+                if(times1===1&&flag1===false){
+                    times1=0;
+                }
+                if(times1===2&&flag1===true&& gold>=100&&getx>200&&buildflag===2){
+                    _this.build1.push(new Bulid(getx1,gety1));
+                    gold-=100;
+                    flag1=false;
+                    times1=0;
+                    buildflag=0;
+                }
+                if(times1===2&&flag1===true&& gold<100) {
+                    times1=0;
+                    flag1=false;
+                    buildflag=0;
+
+                }
+
+            };
+            _this.build.forEach(function (t,index) {
+                t.draw1();
+                _this.moster.forEach(function (t2) {
+                    if(t.fireflag===true){
+                        _this.bulltes.push(new Bullet(t.x+gridWidth/2,t.y+gridHeight/2,_this.moster[0].x+gridWidth/2,_this.moster[0].y+gridHeight/2,t.level1));
+                    }
+                });
+            });
+            _this.build1.forEach(function (t) {
+                t.draw2();
+                _this.moster.forEach(function (t2) {
+                    if(t.fireflag===true){
+                        _this.bulltes.push(new Bullet(t.x+gridWidth/2,t.y+gridHeight/2,_this.moster[0].x+gridWidth/2,_this.moster[0].y+gridHeight/2,t.level1));
+                    }
+                });
+            });
+            //子弹的创建
+                _this.bulltes.forEach(function (t,index) {
+                   t.draw();
+                    t.updatePos();
+                    t.damageLevel();
+                    t.collision();
+                    if(t.collisions==true){
+                        _this.bulltes.splice(_this.bulltes.indexOf(t),1);
+                    }
+                    console.log(_this.bulltes)
+                });
+
+            window.requestAnimationFrame(_this.update);
+
+        };
+
+    }
+    function Map() {
+        var _this=this;
+
+        this.draw=function () {
+            map.forEach(function (t,index) {
+                var col  = index % rowLength;
+                var row = parseInt(index / rowLength);
+                if(t==1) {
+                  ctx.beginPath();
+                  ctx.drawImage(img[1],0,0,64,64,gridWidth*col,gridHeight*row,gridWidth,gridHeight);
+                }else if(t==0){
+                    ctx.beginPath();
+                    ctx.drawImage(img[0],0,0,64,64,gridWidth*col,gridHeight*row,gridWidth,gridHeight);
+
+                }
+            })
+        }
+        this.score=function () {
+            ctx.fillStyle='black';
+            ctx.font='900 50px arial';
+            ctx.fillText('score:'+gold,40,40);
+        }
+
+
+    }
+    function Enemy(falge,hp) {
+        var _this=this;
+        var mosterimg=[];
+        mosterimg.push(new Image());
+        mosterimg[0].src='img/小丑.png';
+        this.x=0;
+        this.y=64;
+        this.imgsize=64;
+        this.t=1;
+        this.v=1;
+        this.v1=-1;
+        this.MaxHP = 10000;
+        this.HP = hp;
+        this.flage=falge;
+        this.mosterFrame=0;
+        this.mosterCd=600;
+        this.draw=function () {
+            map.forEach(function (t) {
+                if(t===0){
+                    ctx.beginPath();
+                    ctx.drawImage(mosterimg[0],0,0,_this.imgsize,_this.imgsize,_this.x,_this.y,mosterimg[0].width,mosterimg[0].height)
+                }
+            })
+        };
+        this.update=function () {
+            _this.v+=0.0001;
+            _this.v1-=0.0001;
+
+            if(_this.x>=0&&_this.x<384&&_this.y===64) {
+                _this.x += _this.t * _this.v;
+                if(_this.x>=384){
+                    _this.x=384;
+                }
+            }else
+                if(_this.y>=64&&_this.y<384&&_this.x===384){
+                _this.y+=_this.t*_this.v;
+                   if(_this.y>=384){
+                       _this.y=384;
+                   }
+                }
+            else if(_this.x<=384&&_this.x>64&&_this.y===384){
+                _this.x+=_this.t*_this.v1;
+                if(_this.x<=64){
+                    _this.x=64
+                }
+            }else if(_this.x===64){
+                _this.y+=_this.t*_this.v1;
+                if(_this.y<=64){
+                    _this.y=64;
+                }
+            }
+
+            ex=_this.x;
+            ey=_this.y;
+        };
+        this.changeColor=function () {
+
+            game.bulltes.forEach(function (t) {
+                var dx=t.bltex-_this.x+gridWidth/2;
+                var dy=t.bltey-_this.y+gridHeight/2;
+                if(Math.sqrt(dx*dx+dy*dy)<(_this.imgsize/2+t.bltesize)){
+                    _this.HP-=t.damage;
+                    if(_this.HP<=0){
+                        _this.flage=true;
+
+                    }
+                }
+            })
+        }
+
+
+    }
+    function Bulid(targetx,targety){
+        var _this=this;
+        this.x=targetx;
+        this.y=targety;
+        this.fireflag=false;
+        buildx=_this.x+gridWidth/2;
+        buildy=_this.y+gridHeight/2;
+        this.fireCD = 60;
+        this.currentCD = 0;
+        this.level1=0;
+        this.lmoney=100;
+        this.levelflag=true;
+        this.draw1=function () {
+                ctx.beginPath();
+                ctx.drawImage(bulidimg, 0, 0, bulidimg.width, bulidimg.height, _this.x, _this.y, 64, 64);
+                ctx.fillStyle = 'white';
+                ctx.font = '10 16px arial';
+                ctx.fillText('LEVE:' + _this.level1, _this.x + gridWidth / 8, _this.y + gridHeight / 2);
+                _this.currentCD++;
+                this.fire();
+        };
+        this.draw2=function () {
+            ctx.beginPath();
+            ctx.drawImage(bulidimg1, 0, 0, bulidimg.width, bulidimg.height, _this.x, _this.y, 64, 64);
+            ctx.fillStyle = 'white';
+            ctx.font = '10 16px arial';
+            ctx.fillText('LEVE:' + _this.level1, _this.x + gridWidth / 8, _this.y + gridHeight / 2);
+            _this.currentCD++;
+            this.fire();
+        }
+        this.fire=function () {
+            if(_this.currentCD>=_this.fireCD){
+                _this.currentCD=0;
+                _this.fireflag=true;
+            }
+            else{
+                _this.fireflag=false;
+            }
+        }
+    }
+    function Bullet(bx,by,mx,my,level) {
+        var _this=this;
+        this.bltex=bx;
+        this.bltey=by;
+        this.bltesize=20;
+        this.enemix=mx;
+        this.enemiy=my;
+        this.v=21;
+        this.t=1;
+        this.damage=5;
+        this.collisions=false;
+        this.damagelevel=level;
+        this.angle = Math.atan2((_this.enemiy - _this.bltey), (_this.enemix - _this.bltex)) + Math.PI / 32;
+
+        this.draw=function () {
+            ctx.beginPath();
+            ctx.drawImage(bulllteimg,0,0,bulllteimg.width,bulllteimg.height,_this.bltex,_this.bltey,_this.bltesize,_this.bltesize);
+
+        };
+        this.updatePos=function () {
+            _this.bltex+=_this.v*_this.t*Math.cos(_this.angle);
+            _this.bltey+=_this.v*_this.t*Math.sin(_this.angle);
+        };
+        this.collision=function () {
+            if(_this.bltex<0||_this.bltex>=cvs.width||_this.bltey<0||_this.bltey>=cvs.height){
+                _this.collisions=true;
+            }
+        };
+        this.damageLevel=function () {
+            if(_this.damagelevel===1){
+                _this.damage=10;
+            }
+            if(_this.damagelevel===2){
+                _this.damage=15;
+            }
+            if(_this.damagelevel===3){
+                _this.damage=20;
+            }
+            if(_this.damagelevel===4){
+                _this.damage=25;
+            }
+            if(_this.damagelevel===5){
+                _this.damage=30;
+            }
+        }
+    }
+    function agin() {
+            bigbox.style.display='none';
+            mosterbtn=true;
+        }
+
+    function level() {
+        game.build.forEach(function (t) {
+            if(gold>=100&&t.levelflag===true) {
+                t.level1 += 1;
+            }
+            if(gold<100||t.level1>=5){
+                t.levelflag=false;
+            }
+        });
+        if(gold>=game.build[0].lmoney) {
+            gold -= game.build[0].lmoney;
+            game.build[0].lmoney += 100;
+        }
+    }
+    function level1() {
+        game.build1.forEach(function (t) {
+            if(gold>=100&&t.levelflag===true) {
+                t.level1 += 1;
+            }
+            if(gold<100||t.level1>=5){
+                t.levelflag=false;
+            }
+        });
+        if(gold>=game.build[0].lmoney) {
+            gold -= game.build[0].lmoney;
+            game.build[0].lmoney += 100;
+        }
+    }
+</script>
+</body>
+</html>
